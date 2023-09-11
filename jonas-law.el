@@ -31,6 +31,8 @@
    :feature 'basic
    jonas-law-font-lock-query))
 
+(defvar jonas-law-allowed-operators '())
+
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
                   (rx "#d'" (group d d d d "-" d d "-" d d) "'"))
@@ -48,13 +50,10 @@
                     (-map #'cdr)
                     (-remove #'jonas-law--date-valid-p)
                     (--map (jonas-law--diagnostic it :warning "Nonstandard date"))))
-         (defined (->> nodes
-                       (--filter (eq (car it) 'font-lock-keyword-face))
-                       (-map (-compose #'treesit-node-text #'cdr))))
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
-                    (--remove (member (treesit-node-text it) defined))
+                    (--remove (member (treesit-node-text it) jonas-law-allowed-operators))
                     (--map (jonas-law--diagnostic it :error "Unknown operator")))))
     (funcall report-fn (append date used))))
 

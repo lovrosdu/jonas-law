@@ -14,3 +14,7 @@ palindrome('eye').
 even(2).
 
 erroneous(X) :- nonexistent(2).
+
+;; Local Variables:
+;; jonas-law-allowed-operators: ("mother_child" "father_child" "sibling" "parent_child")
+;; End:
