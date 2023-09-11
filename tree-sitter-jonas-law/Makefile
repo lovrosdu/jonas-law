@@ -1,12 +1,14 @@
-all: libtree-sitter-jonas-law.so
+GRAMMARS := jonas-law.js
+DIRS := $(patsubst %.js, %, $(GRAMMARS))
+LIBS := $(patsubst %.js, libtree-sitter-%.so, $(GRAMMARS))
 
-src/parser.c: grammar.js
-	tree-sitter generate
+all: $(LIBS)
 
-libtree-sitter-jonas-law.so: CFLAGS=-shared -fPIC -fno-exceptions -g -O2 -I src -o $@
-libtree-sitter-jonas-law.so: src/parser.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^
+$(LIBS): libtree-sitter-%.so: %.js
+	tree-sitter generate --no-bindings "$<"
+	$(RM) -rf "$*" && mv src "$*"
+	$(CC) $(CPPFLAGS) $(CFLAGS) -shared -fPIC -fno-exceptions -g -O2 -I "$*" -o "$@" "$*/parser.c"
 
 .PHONY: clean
 clean:
-	$(RM) -r src libtree-sitter-jonas-law.so
+	$(RM) -r $(DIRS) $(LIBS)
