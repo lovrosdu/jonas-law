@@ -1,0 +1,5 @@
+something; This is a fact because the government said so
+mother_child(X, Y); X is the mother of Y
+father_child(X, Y); X is the father of Y
+sibling(X, Y); X and Y are siblings
+parent_child(X, Y); X is the parent of Y

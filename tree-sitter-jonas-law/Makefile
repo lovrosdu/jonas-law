@@ -1,8 +1,11 @@
-GRAMMARS := jonas-law.js
+GRAMMARS := jonas-law.js jonas-law-explanations.js
 DIRS := $(patsubst %.js, %, $(GRAMMARS))
 LIBS := $(patsubst %.js, libtree-sitter-%.so, $(GRAMMARS))
 
 all: $(LIBS)
+
+jonas-law-explanations.js: jonas-law.js
+	touch "$@"
 
 $(LIBS): libtree-sitter-%.so: %.js
 	tree-sitter generate --no-bindings "$<"

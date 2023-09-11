@@ -1,8 +1,16 @@
 ;; -*- lexical-binding: t; -*-
 
+(require 'cl-lib)
 (require 'dash)
 (require 'flymake)
 (require 'treesit)
+
+;;; Util
+
+(defun jonas-law--query-list (node query)
+  (treesit-query-capture node query nil nil 'node-only))
+
+;;; Syntax highlighting
 
 (defun jonas-law--fontify-date (node override start end)
   (let ((node-start (treesit-node-start node))
@@ -31,7 +39,39 @@
    :feature 'basic
    jonas-law-font-lock-query))
 
-(defvar jonas-law-allowed-operators '())
+;;; Semantic checks
+
+(defvar jonas-law-known-operators '())
+(defvar jonas-law-explanations-path nil)
+
+(defun jonas-law--head-list (node)
+  (let* ((nodes (jonas-law--query-list node '((head (atom) @x)))))
+    (cl-destructuring-bind (&optional atom) nodes
+      (if atom
+          (list atom nil)
+        (let ((nodes (jonas-law--query-list node '((head (operator) @x)))))
+          (cl-destructuring-bind (&optional operator) nodes
+            (treesit-node-children operator 'named)))))))
+
+(defun jonas-law--read-explanations-1 (filename)
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (let* ((parser (treesit-parser-create 'jonas-law-explanations))
+           (nodes (jonas-law--query-list parser '((clause) @x))))
+      (->> nodes
+           (--map (list (car (jonas-law--head-list it))
+                        (treesit-node-child it 1 'named)))
+           (--map (-map #'treesit-node-text it))))))
+
+(defun jonas-law--read-explanations (directory)
+  (-mapcat #'jonas-law--read-explanations-1
+           (directory-files directory 'full (rx (+ nonl) ".txt"))))
+
+(defun jonas-law--load-known-operators ()
+  (when jonas-law-explanations-path
+    (let* ((path jonas-law-explanations-path)
+           (explanations (jonas-law--read-explanations path)))
+      (setq jonas-law-known-operators (-map #'car explanations)))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
@@ -53,9 +93,11 @@
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
-                    (--remove (member (treesit-node-text it) jonas-law-allowed-operators))
+                    (--remove (member (treesit-node-text it) jonas-law-known-operators))
                     (--map (jonas-law--diagnostic it :error "Unknown operator")))))
     (funcall report-fn (append date used))))
+
+;;; Major mode
 
 (define-derived-mode jonas-law-mode prog-mode "Jonas-Law"
   "Major mode for editing Jonas Law code."
@@ -64,6 +106,7 @@
     (setq treesit-font-lock-settings jonas-law-font-lock-settings
           treesit-font-lock-feature-list '((basic)))
     (treesit-major-mode-setup)
+    (add-hook 'hack-local-variables-hook #'jonas-law--load-known-operators nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
     (flymake-mode)))
 
