@@ -44,10 +44,10 @@
 
 (defvar jonas-law-known-functors '())
 (defvar jonas-law-explanations-path nil)
-(defvar jonas-law--watches '())
+(defvar jonas-law--watchers '())
 
 (defun jonas-law--explanation-files (directory)
-  (directory-files directory 'full (rx (+ nonl) ".txt")))
+  (directory-files directory 'full (rx ".txt" eos)))
 
 (defun jonas-law--read-explanations-1 (filename)
   (with-temp-buffer
@@ -67,23 +67,30 @@
                                  (jonas-law--explanation-files path))))
       (setq-local jonas-law-known-functors (-map #'car explanations)))))
 
-(defun jonas-law--refresh-watches ()
+(defun jonas-law--remove-watchers ()
+  (interactive)
+  (dolist (w jonas-law--watchers)
+    (file-notify-rm-watch w))
+  (setq-local jonas-law--watchers '()))
+
+(defun jonas-law--watcher (filename buffer)
+  (lambda (event)
+    (cl-destructuring-bind (_d action &rest _f) event
+      (when (eq action 'changed)
+        (with-current-buffer buffer
+          (jonas-law--load-known-functors)
+          (flymake-start))))))
+
+(defun jonas-law--refresh-watchers ()
+  (jonas-law--remove-watchers)
   (let ((buffer (current-buffer)))
-    (dolist (w jonas-law--watches)
-      (file-notify-rm-watch w))
-    (setq-local jonas-law--watches '())
     (dolist (f (jonas-law--explanation-files jonas-law-explanations-path))
-      (push (file-notify-add-watch f '(change)
-                                   (lambda (e)
-                                     (when (eq e 'changed)
-                                       (with-current-buffer buffer
-                                         (jonas-law--load-known-functors)
-                                         (flymake-start)))))
-            jonas-law--watches))))
+      (push (file-notify-add-watch f '(change) (jonas-law--watcher f buffer))
+            jonas-law--watchers))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
-                  (rx "#d'" (group d d d d "-" d d "-" d d) "'"))
+                  (rx "#d'" d d d d "-" d d "-" d d "'"))
                 (treesit-node-text node)))
 
 (defun jonas-law--diagnostic (node type message)
@@ -111,6 +118,10 @@
 
 ;;; Major mode
 
+(defun jonas-law--watchers-hook ()
+  (jonas-law--load-known-functors)
+  (jonas-law--refresh-watchers))
+
 (define-derived-mode jonas-law-mode prog-mode "Jonas-Law"
   "Major mode for editing Jonas Law code."
   (when (treesit-ready-p 'jonas-law)
@@ -118,11 +129,9 @@
     (setq treesit-font-lock-settings jonas-law-font-lock-settings
           treesit-font-lock-feature-list '((basic)))
     (treesit-major-mode-setup)
-    (add-hook 'hack-local-variables-hook
-              (lambda ()
-                (jonas-law--load-known-functors)
-                (jonas-law--refresh-watches))
-              nil t)
+    (add-hook 'hack-local-variables-hook #'jonas-law--watchers-hook nil t)
+    (add-hook 'change-major-mode-hook #'jonas-law--remove-watchers nil t)
+    (add-hook 'kill-buffer-hook #'jonas-law--remove-watchers nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
     (flymake-mode)))
 
