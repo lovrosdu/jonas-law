@@ -2,6 +2,7 @@
 
 (require 'cl-lib)
 (require 'dash)
+(require 'filenotify)
 (require 'flymake)
 (require 'treesit)
 
@@ -43,6 +44,7 @@
 
 (defvar jonas-law-known-compounds '())
 (defvar jonas-law-explanations-path nil)
+(defvar jonas-law--watches '())
 
 (defun jonas-law--explanation-files (directory)
   (directory-files directory 'full (rx (+ nonl) ".txt")))
@@ -64,6 +66,20 @@
     (let ((explanations (-mapcat #'jonas-law--read-explanations-1
                                  (jonas-law--explanation-files path))))
       (setq-local jonas-law-known-compounds (-map #'car explanations)))))
+
+(defun jonas-law--refresh-watches ()
+  (let ((buffer (current-buffer)))
+    (dolist (w jonas-law--watches)
+      (file-notify-rm-watch w))
+    (setq-local jonas-law--watches '())
+    (dolist (f (jonas-law--explanation-files jonas-law-explanations-path))
+      (push (file-notify-add-watch f '(change)
+                                   (lambda (e)
+                                     (when (eq e 'changed)
+                                       (with-current-buffer buffer
+                                         (jonas-law--load-known-compounds)
+                                         (flymake-start)))))
+            jonas-law--watches))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
@@ -102,7 +118,11 @@
     (setq treesit-font-lock-settings jonas-law-font-lock-settings
           treesit-font-lock-feature-list '((basic)))
     (treesit-major-mode-setup)
-    (add-hook 'hack-local-variables-hook #'jonas-law--load-known-compounds nil t)
+    (add-hook 'hack-local-variables-hook
+              (lambda ()
+                (jonas-law--load-known-compounds)
+                (jonas-law--refresh-watches))
+              nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
     (flymake-mode)))
 
