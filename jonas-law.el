@@ -11,6 +11,9 @@
 (defun jonas-law--query-list (node query)
   (treesit-query-capture node query nil nil 'node-only))
 
+(defun jonas-law--warn (format &rest args)
+  (display-warning 'jonas-law (apply #'format-message format args)))
+
 ;;; Syntax highlighting
 
 (defun jonas-law--fontify-date (node override start end)
@@ -61,10 +64,17 @@
                              (list explanation))))
              nodes))))
 
+(defun jonas-law--read-explanations (directory)
+  (--mapcat
+   (condition-case e (jonas-law--read-explanations-1 it)
+     (error (prog1 nil
+              (jonas-law--warn "Skipping explanations file %S due to error: %S"
+                               it e))))
+   (jonas-law--explanation-files directory)))
+
 (defun jonas-law--load-known-functors ()
   (when-let ((path jonas-law-explanations-path))
-    (let ((explanations (-mapcat #'jonas-law--read-explanations-1
-                                 (jonas-law--explanation-files path))))
+    (let ((explanations (jonas-law--read-explanations path)))
       (setq-local jonas-law-known-functors (-map #'car explanations)))))
 
 (defun jonas-law--remove-watchers ()
