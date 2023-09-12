@@ -57,11 +57,11 @@
     (insert-file-contents filename)
     (let* ((parser (treesit-parser-create 'jonas-law-explanations))
            (nodes (jonas-law--query-list parser '((clause) @x))))
-      (--map (cl-destructuring-bind (compound explanation)
+      (--map (cl-destructuring-bind (compound text)
                  (treesit-node-children it 'named)
                (-map #'treesit-node-text
                      (append (treesit-node-children compound 'named)
-                             (list explanation))))
+                             (list text))))
              nodes))))
 
 (defun jonas-law--read-explanations (directory)
