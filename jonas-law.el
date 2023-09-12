@@ -24,8 +24,8 @@
 
 (defvar jonas-law-font-lock-query
   '((head (atom) @font-lock-keyword-face)
-    (head (operator (atom) @font-lock-keyword-face))
-    (operator (atom) @font-lock-function-name-face)
+    (head (compound (atom) @font-lock-keyword-face))
+    (compound (atom) @font-lock-function-name-face)
     ((atom) @font-lock-constant-face)
     ((variable) @font-lock-variable-name-face)
     ((string) @font-lock-string-face)
@@ -41,7 +41,7 @@
 
 ;;; Semantic checks
 
-(defvar jonas-law-known-operators '())
+(defvar jonas-law-known-compounds '())
 (defvar jonas-law-explanations-path nil)
 
 (defun jonas-law--head-list (node)
@@ -49,9 +49,9 @@
     (cl-destructuring-bind (&optional atom) nodes
       (if atom
           (list atom nil)
-        (let ((nodes (jonas-law--query-list node '((head (operator) @x)))))
-          (cl-destructuring-bind (&optional operator) nodes
-            (treesit-node-children operator 'named)))))))
+        (let ((nodes (jonas-law--query-list node '((head (compound) @x)))))
+          (cl-destructuring-bind (&optional compound) nodes
+            (treesit-node-children compound 'named)))))))
 
 (defun jonas-law--read-explanations-1 (filename)
   (with-temp-buffer
@@ -67,11 +67,11 @@
   (-mapcat #'jonas-law--read-explanations-1
            (directory-files directory 'full (rx (+ nonl) ".txt"))))
 
-(defun jonas-law--load-known-operators ()
+(defun jonas-law--load-known-compounds ()
   (when jonas-law-explanations-path
     (let* ((path jonas-law-explanations-path)
            (explanations (jonas-law--read-explanations path)))
-      (setq jonas-law-known-operators (-map #'car explanations)))))
+      (setq jonas-law-known-compounds (-map #'car explanations)))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
@@ -93,8 +93,8 @@
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
-                    (--remove (member (treesit-node-text it) jonas-law-known-operators))
-                    (--map (jonas-law--diagnostic it :error "Unknown operator")))))
+                    (--remove (member (treesit-node-text it) jonas-law-known-compounds))
+                    (--map (jonas-law--diagnostic it :error "Unknown compound term")))))
     (funcall report-fn (append date used))))
 
 ;;; Major mode
@@ -106,7 +106,7 @@
     (setq treesit-font-lock-settings jonas-law-font-lock-settings
           treesit-font-lock-feature-list '((basic)))
     (treesit-major-mode-setup)
-    (add-hook 'hack-local-variables-hook #'jonas-law--load-known-operators nil t)
+    (add-hook 'hack-local-variables-hook #'jonas-law--load-known-compounds nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
     (flymake-mode)))
 
