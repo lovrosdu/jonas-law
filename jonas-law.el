@@ -126,6 +126,6 @@
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
     (flymake-mode)))
 
-(add-to-list 'auto-mode-alist '("\\.jlaw\\'" . jonas-law-mode))
+(add-to-list 'auto-mode-alist `(,(rx ".jlaw" eos) . jonas-law-mode))
 
 (provide 'jonas-law)
