@@ -75,6 +75,7 @@
 
 (defun jonas-law--watcher (filename buffer)
   (lambda (event)
+    (message "debug: file-notify: %S" event)
     (cl-destructuring-bind (_d action &rest _f) event
       (when (eq action 'changed)
         (with-current-buffer buffer
