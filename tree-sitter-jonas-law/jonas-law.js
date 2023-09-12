@@ -7,10 +7,10 @@ module.exports = grammar({
         rule: $ => seq($.head, ':-', $.term_list),
         term: $ => choice($.atom, $.variable, $.number, $.string, $.date, $.operator),
         term_list: $ => seq($.term, repeat(seq(',', $.term))),
-        atom: $ => /[a-z][a-zA-Z0-9_]*/,
+        atom: $ => /\p{Lowercase}[\p{Alphabetic}\p{Number}_$+*/-]*/,
         operator: $ => seq($.atom, '(', $.term_list, ')'),
-        variable: $ => /[A-Z][a-zA-Z0-9_]*/,
-        number: $ => /[0-9][0-9]*/,
+        variable: $ => /[\p{Uppercase}_][\p{Alphabetic}\p{Number}+*/-]*/,
+        number: $ => /[0-9]+/,
         string: $ => /'[^']*'/,
         date: $ => /#d'[^']*'/
     }
