@@ -82,10 +82,14 @@
                     (-map #'cdr)
                     (-remove #'jonas-law--date-valid-p)
                     (--map (jonas-law--diagnostic it :warning "Nonstandard date"))))
+         (defined (->> nodes
+                       (--filter (eq (car it) 'font-lock-keyword-face))
+                       (-map (-compose #'treesit-node-text #'cdr))))
+         (known (append defined jonas-law-known-compounds))
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
-                    (--remove (member (treesit-node-text it) jonas-law-known-compounds))
+                    (--remove (member (treesit-node-text it) known))
                     (--map (jonas-law--diagnostic it :error "Unknown compound term")))))
     (funcall report-fn (append date used))))
 
