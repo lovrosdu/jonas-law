@@ -84,10 +84,11 @@
 
 (defun jonas-law--refresh-watchers ()
   (jonas-law--remove-watchers)
-  (let ((buffer (current-buffer)))
-    (dolist (f (jonas-law--explanation-files jonas-law-explanations-path))
-      (push (file-notify-add-watch f '(change) (jonas-law--watcher f buffer))
-            jonas-law--watchers))))
+  (when-let ((path jonas-law-explanations-path))
+    (let ((buffer (current-buffer)))
+      (dolist (f (jonas-law--explanation-files path))
+        (push (file-notify-add-watch f '(change) (jonas-law--watcher f buffer))
+              jonas-law--watchers)))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
@@ -119,7 +120,7 @@
 
 ;;; Major mode
 
-(defun jonas-law--watchers-hook ()
+(defun jonas-law--known-functors-hook ()
   (jonas-law--load-known-functors)
   (jonas-law--refresh-watchers))
 
@@ -130,7 +131,7 @@
     (setq treesit-font-lock-settings jonas-law-font-lock-settings
           treesit-font-lock-feature-list '((basic)))
     (treesit-major-mode-setup)
-    (add-hook 'hack-local-variables-hook #'jonas-law--watchers-hook nil t)
+    (add-hook 'hack-local-variables-hook #'jonas-law--known-functors-hook nil t)
     (add-hook 'change-major-mode-hook #'jonas-law--remove-watchers nil t)
     (add-hook 'kill-buffer-hook #'jonas-law--remove-watchers nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
