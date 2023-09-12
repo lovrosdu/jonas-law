@@ -44,34 +44,26 @@
 (defvar jonas-law-known-compounds '())
 (defvar jonas-law-explanations-path nil)
 
-(defun jonas-law--head-list (node)
-  (let* ((nodes (jonas-law--query-list node '((head (atom) @x)))))
-    (cl-destructuring-bind (&optional atom) nodes
-      (if atom
-          (list atom nil)
-        (let ((nodes (jonas-law--query-list node '((head (compound) @x)))))
-          (cl-destructuring-bind (&optional compound) nodes
-            (treesit-node-children compound 'named)))))))
+(defun jonas-law--explanation-files (directory)
+  (directory-files directory 'full (rx (+ nonl) ".txt")))
 
 (defun jonas-law--read-explanations-1 (filename)
   (with-temp-buffer
     (insert-file-contents filename)
     (let* ((parser (treesit-parser-create 'jonas-law-explanations))
            (nodes (jonas-law--query-list parser '((clause) @x))))
-      (->> nodes
-           (--map (list (car (jonas-law--head-list it))
-                        (treesit-node-child it 1 'named)))
-           (--map (-map #'treesit-node-text it))))))
-
-(defun jonas-law--read-explanations (directory)
-  (-mapcat #'jonas-law--read-explanations-1
-           (directory-files directory 'full (rx (+ nonl) ".txt"))))
+      (--map (cl-destructuring-bind (compound explanation)
+                 (treesit-node-children it 'named)
+               (-map #'treesit-node-text
+                     (append (treesit-node-children compound 'named)
+                             (list explanation))))
+             nodes))))
 
 (defun jonas-law--load-known-compounds ()
-  (when jonas-law-explanations-path
-    (let* ((path jonas-law-explanations-path)
-           (explanations (jonas-law--read-explanations path)))
-      (setq jonas-law-known-compounds (-map #'car explanations)))))
+  (when-let ((path jonas-law-explanations-path))
+    (let ((explanations (-mapcat #'jonas-law--read-explanations-1
+                                 (jonas-law--explanation-files path))))
+      (setq-local jonas-law-known-compounds (-map #'car explanations)))))
 
 (defun jonas-law--date-valid-p (node)
   (string-match (rx-let ((d digit))
