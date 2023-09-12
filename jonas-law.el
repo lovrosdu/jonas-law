@@ -42,7 +42,7 @@
 
 ;;; Semantic checks
 
-(defvar jonas-law-known-compounds '())
+(defvar jonas-law-known-functors '())
 (defvar jonas-law-explanations-path nil)
 (defvar jonas-law--watches '())
 
@@ -61,11 +61,11 @@
                              (list explanation))))
              nodes))))
 
-(defun jonas-law--load-known-compounds ()
+(defun jonas-law--load-known-functors ()
   (when-let ((path jonas-law-explanations-path))
     (let ((explanations (-mapcat #'jonas-law--read-explanations-1
                                  (jonas-law--explanation-files path))))
-      (setq-local jonas-law-known-compounds (-map #'car explanations)))))
+      (setq-local jonas-law-known-functors (-map #'car explanations)))))
 
 (defun jonas-law--refresh-watches ()
   (let ((buffer (current-buffer)))
@@ -77,7 +77,7 @@
                                    (lambda (e)
                                      (when (eq e 'changed)
                                        (with-current-buffer buffer
-                                         (jonas-law--load-known-compounds)
+                                         (jonas-law--load-known-functors)
                                          (flymake-start)))))
             jonas-law--watches))))
 
@@ -101,12 +101,12 @@
          (defined (->> nodes
                        (--filter (eq (car it) 'font-lock-keyword-face))
                        (-map (-compose #'treesit-node-text #'cdr))))
-         (known (append defined jonas-law-known-compounds))
+         (known (append defined jonas-law-known-functors))
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
                     (--remove (member (treesit-node-text it) known))
-                    (--map (jonas-law--diagnostic it :error "Unknown compound term")))))
+                    (--map (jonas-law--diagnostic it :error "Unknown functor")))))
     (funcall report-fn (append date used))))
 
 ;;; Major mode
@@ -120,7 +120,7 @@
     (treesit-major-mode-setup)
     (add-hook 'hack-local-variables-hook
               (lambda ()
-                (jonas-law--load-known-compounds)
+                (jonas-law--load-known-functors)
                 (jonas-law--refresh-watches))
               nil t)
     (add-hook 'flymake-diagnostic-functions #'jonas-law--flymake nil t)
