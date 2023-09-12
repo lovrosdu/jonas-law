@@ -2,6 +2,7 @@ GRAMMARS := jonas-law.js jonas-law-explanations.js
 DIRS := $(patsubst %.js, %, $(GRAMMARS))
 LIBS := $(patsubst %.js, libtree-sitter-%.so, $(GRAMMARS))
 
+.PHONY: all
 all: $(LIBS)
 
 jonas-law-explanations.js: jonas-law.js
