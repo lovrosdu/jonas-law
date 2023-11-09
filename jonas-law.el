@@ -27,15 +27,13 @@
      font-lock-string-face override)))
 
 (defvar jonas-law-font-lock-query
-  '((head (atom) @font-lock-keyword-face)
-    (head (compound (atom) @font-lock-keyword-face))
-    (compound (atom) @font-lock-function-name-face)
-    ((atom) @font-lock-constant-face)
+  '(((predicate) @font-lock-keyword-face)
+    ((predicate) @font-lock-function-name-face)
+    ((constant) @font-lock-constant-face)
     ((variable) @font-lock-variable-name-face)
-    ((string) @font-lock-string-face)
-    ((date) @jonas-law--fontify-date)
+    ((constant) @font-lock-string-face)
     ((number) @font-lock-constant-face)
-    ([":-" "(" ")" "," "."] @font-lock-delimiter-face)))
+    (["<-" "(" ")" "," ":" ";" "/\\" "\\/" "]" "[" ] @font-lock-delimiter-face)))
 
 (defvar jonas-law-font-lock-settings
   (treesit-font-lock-rules
@@ -84,6 +82,7 @@
   (setq-local jonas-law--watchers '()))
 
 (defun jonas-law--watcher (filename buffer)
+  (message "adding watcher for %S" filename)
   (lambda (event)
     (message "debug: file-notify: %S" event)
     (cl-destructuring-bind (_d action &rest _f) event
@@ -100,10 +99,6 @@
         (push (file-notify-add-watch f '(change) (jonas-law--watcher f buffer))
               jonas-law--watchers)))))
 
-(defun jonas-law--date-valid-p (node)
-  (string-match (rx-let ((d digit))
-                  (rx "#d'" d d d d "-" d d "-" d d "'"))
-                (treesit-node-text node)))
 
 (defun jonas-law--diagnostic (node type message)
   (flymake-make-diagnostic
@@ -111,22 +106,14 @@
    type message))
 
 (defun jonas-law--flymake (report-fn &rest _args)
+  (message "Flymake initatabte")
   (let* ((nodes (treesit-query-capture 'jonas-law jonas-law-font-lock-query))
-         (date (->> nodes
-                    (--filter (eq (car it) 'jonas-law--fontify-date))
-                    (-map #'cdr)
-                    (-remove #'jonas-law--date-valid-p)
-                    (--map (jonas-law--diagnostic it :warning "Nonstandard date"))))
-         (defined (->> nodes
-                       (--filter (eq (car it) 'font-lock-keyword-face))
-                       (-map (-compose #'treesit-node-text #'cdr))))
-         (known (append defined jonas-law-known-functors))
          (used (->> nodes
                     (--filter (eq (car it) 'font-lock-function-name-face))
                     (-map #'cdr)
-                    (--remove (member (treesit-node-text it) known))
-                    (--map (jonas-law--diagnostic it :error "Unknown functor")))))
-    (funcall report-fn (append date used))))
+                    (--remove (member (treesit-node-text it) jonas-law-known-functors))
+                    (--map (jonas-law--diagnostic it :error "Unknown predicate")))))
+    (funcall report-fn used)))
 
 ;;; Major mode
 
